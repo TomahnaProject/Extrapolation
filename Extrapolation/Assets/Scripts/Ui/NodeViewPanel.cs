@@ -128,7 +128,7 @@ public class NodeViewPanel : MonoBehaviour,
         _rectTransform = GetComponent<RectTransform>();
         int rectWidth = Mathf.RoundToInt(_rectTransform.rect.width);
         int rectHeight = Mathf.RoundToInt(_rectTransform.rect.height);
-        _renderTex = new RenderTexture(rectWidth, rectHeight, 0, GraphicsFormat.R8G8B8_SRGB);
+        _renderTex = new RenderTexture(rectWidth, rectHeight, 0, DefaultFormat.LDR);
         _renderCam = new GameObject(name + "_camera").AddComponent<Camera>();
         _renderCam.fieldOfView = 80;
         _renderCam.nearClipPlane = 0.001f;
