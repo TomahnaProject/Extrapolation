@@ -519,6 +519,9 @@ public class MainHandler : MonoBehaviour
         GC.WaitForPendingFinalizers();
 
         SaveProject();
+        
+        foreach (NodeViewPanel nodeView in panelsCanvas.GetComponentsInChildren<NodeViewPanel>())
+            nodeView.RecenterCamera();
     }
 
     /// <summary>
@@ -687,6 +690,9 @@ public class MainHandler : MonoBehaviour
         };
         saveProjectButton.interactable = false;
         solver.AddAllPoiOnNode(_project.PoiOnNodes);
+
+        foreach (NodeViewPanel nodeView in panelsCanvas.GetComponentsInChildren<NodeViewPanel>())
+            nodeView.RecenterCamera();
     }
 
     /// <summary>

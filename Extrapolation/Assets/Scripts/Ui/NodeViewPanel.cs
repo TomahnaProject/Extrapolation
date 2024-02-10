@@ -216,18 +216,6 @@ public class NodeViewPanel : MonoBehaviour,
         }
         else
         {
-            List<NodeRenderer> GetNodesList()
-            {
-                List<NodeRenderer> nodes = new();
-                for (int i = 0; i < mainHandler.nodesParent.childCount; i++)
-                {
-                    NodeRenderer component = mainHandler.nodesParent.GetChild(i).GetComponent<NodeRenderer>();
-                    if (component != null)
-                        nodes.Add(component);
-                }
-                return nodes;
-            }
-
             if (Input.GetKeyDown(KeyCode.D) ||
                 Input.GetKeyDown(KeyCode.S) ||
                 Input.GetKeyDown(KeyCode.RightArrow) ||
@@ -405,6 +393,18 @@ public class NodeViewPanel : MonoBehaviour,
         }
     }
 
+    List<NodeRenderer> GetNodesList()
+    {
+        List<NodeRenderer> nodes = new();
+        for (int i = 0; i < mainHandler.nodesParent.childCount; i++)
+        {
+            NodeRenderer component = mainHandler.nodesParent.GetChild(i).GetComponent<NodeRenderer>();
+            if (component != null)
+                nodes.Add(component);
+        }
+        return nodes;
+    }
+
     void OnDestroy()
     {
         if (_renderCam != null)
@@ -459,6 +459,19 @@ public class NodeViewPanel : MonoBehaviour,
         PoiOnNode pon = _uiPointsOfInterest.Keys.FirstOrDefault(pon => pon.Point == poi);
         if (pon != null)
             _uiPointsOfInterest[pon].label.text = newName;
+    }
+
+    public void RecenterCamera()
+    {
+        var allPositions = GetNodesList().Select(n => n.transform.position).ToList();
+        if (allPositions.Count == 0)
+            return;
+        Bounds b = new(allPositions[0], Vector3.zero);
+        foreach (Vector3 pos in allPositions.Skip(1))
+            b.Encapsulate(pos);
+        Vector3 camDirection = new(1, 0.75f, -1);
+        _renderCam.transform.position = b.center + camDirection * b.extents.magnitude;
+        _renderCam.transform.LookAt(b.center);
     }
 
     #endregion
