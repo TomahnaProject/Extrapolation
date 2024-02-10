@@ -537,6 +537,50 @@ public class NodeViewPanel : MonoBehaviour,
             }
         }
         GL.End();
+
+        // Draw orientation gizmo.
+        GL.PushMatrix();
+
+        int width = _renderTex.width;
+        int height = _renderTex.height;
+        int gizmoRenderHeight = 150;
+        int gizmoRenderWidth = gizmoRenderHeight;
+        GL.Viewport(new Rect(width - gizmoRenderWidth, height - gizmoRenderHeight, gizmoRenderWidth, gizmoRenderHeight));
+        GL.LoadProjectionMatrix(Matrix4x4.Perspective(45, gizmoRenderWidth / (float)gizmoRenderHeight, 0.1f, 10f));
+        Matrix4x4 modelView = Matrix4x4.Translate(new Vector3(0, 0, -3)) * Matrix4x4.Rotate(Quaternion.Inverse(_renderCam.transform.rotation));
+        // Need to negate third row of the matrix... Go figure. Maybe something with right vs left handed coordinates, and gl/dx...
+        modelView.m20 *= -1;
+        modelView.m21 *= -1;
+        modelView.m22 *= -1;
+        GL.modelview = modelView;
+
+        GL.Begin(GL.LINES);
+        GL.Color(Color.red);
+        GL.Vertex(Vector3.zero);
+        GL.Vertex(Vector3.right);
+        GL.Vertex(Vector3.right);
+        GL.Vertex(Vector3.right + new Vector3(-1, 0, 1) * 0.1f);
+        GL.Vertex(Vector3.right);
+        GL.Vertex(Vector3.right + new Vector3(-1, 0, -1) * 0.1f);
+
+        GL.Color(Color.green);
+        GL.Vertex(Vector3.zero);
+        GL.Vertex(Vector3.up);
+        GL.Vertex(Vector3.up);
+        GL.Vertex(Vector3.up + new Vector3(-1, -1, 0) * 0.1f);
+        GL.Vertex(Vector3.up);
+        GL.Vertex(Vector3.up + new Vector3(1, -1, 0) * 0.1f);
+
+        GL.Color(Color.blue);
+        GL.Vertex(Vector3.zero);
+        GL.Vertex(Vector3.forward);
+        GL.Vertex(Vector3.forward);
+        GL.Vertex(Vector3.forward + new Vector3(-1, 0, -1) * 0.1f);
+        GL.Vertex(Vector3.forward);
+        GL.Vertex(Vector3.forward + new Vector3(1, 0, -1) * 0.1f);
+        GL.End();
+
+        GL.PopMatrix();
     }
 
     public void OnBeginDrag(PointerEventData eventData)
