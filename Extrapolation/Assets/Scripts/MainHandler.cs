@@ -233,30 +233,27 @@ public class MainHandler : MonoBehaviour
     {
         if (_project != null && _project.Unsaved)
         {
-            Task<string> t = questionBox.Show("Save changes", "Your project has unsaved changes. Do you want to save ?", "Save", "Discard", "Cancel");
-            t.ContinueWith(t =>
-            {
-                if (t.IsFaulted || t.IsCanceled)
-                {
-                    Debug.LogError($"OnWantsToQuit: task faulted: {t.IsFaulted}, cancelled: {t.IsCanceled}, {t.Exception}");
-                }
-                else
-                {
-                    // completed successfully
-                    if (t.Result == "Save")
-                    {
-                        SaveProject();
-                        Application.Quit();
-                    }
-                    else if (t.Result == "Discard")
-                    {
-                        Application.Quit();
-                    }
-                }
-            });
+            HandleQuitting();
             return false;
         }
         return true;
+    }
+
+    async void HandleQuitting()
+    {
+        string result = await questionBox.Show("Save changes", "Your project has unsaved changes. Do you want to save ?", "Save", "Discard", "Cancel");
+        if (result == "Save")
+        {
+            SaveProject();
+            print("Saved, now quitting.");
+            Application.Quit();
+        }
+        else if (result == "Discard")
+        {
+            CloseProject();
+            print("Discarded, now quitting.");
+            Application.Quit();
+        }
     }
 
     void OnNodeSelectionChanged(ReadOnlyCollection<Transform> selection)
