@@ -202,6 +202,44 @@ public class NodeViewPanel : MonoBehaviour,
                 Vector3.up * movementInput.z)
                 * Time.deltaTime * sensitivity;
         }
+        else
+        {
+            List<NodeRenderer> GetNodesList()
+            {
+                List<NodeRenderer> nodes = new();
+                for (int i = 0; i < mainHandler.nodesParent.childCount; i++)
+                {
+                    NodeRenderer component = mainHandler.nodesParent.GetChild(i).GetComponent<NodeRenderer>();
+                    if (component != null)
+                        nodes.Add(component);
+                }
+                return nodes;
+            }
+
+            if (Input.GetKeyDown(KeyCode.D) ||
+                Input.GetKeyDown(KeyCode.S) ||
+                Input.GetKeyDown(KeyCode.RightArrow) ||
+                Input.GetKeyDown(KeyCode.DownArrow)
+                )
+            {
+                List<NodeRenderer> nodes = GetNodesList();
+                int index = nodes.IndexOf(Node);
+                if (index + 1 < nodes.Count)
+                    Node = nodes[index + 1];
+            }
+
+            else if (Input.GetKeyDown(KeyCode.A) ||
+                Input.GetKeyDown(KeyCode.W) ||
+                Input.GetKeyDown(KeyCode.LeftArrow) ||
+                Input.GetKeyDown(KeyCode.UpArrow)
+                )
+            {
+                List<NodeRenderer> nodes = GetNodesList();
+                int index = nodes.IndexOf(Node);
+                if (index > 0)
+                    Node = nodes[index - 1];
+            }
+        }
 
         if (Input.GetKeyDown(KeyCode.F))
         {
