@@ -434,6 +434,12 @@ public class MainHandler : MonoBehaviour
         if (!FileBrowser.Success)
         {
             print("Import M3 cancelled.");
+            // Ensure opened files are all released.
+            // TODO: eventually replace the whole scummvm code with a simpler script.
+            loader.Shutdown();
+            loader = null;
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
             return;
         }
         projectPath = FileBrowser.Result[0];
@@ -441,6 +447,12 @@ public class MainHandler : MonoBehaviour
         if (!FileBrowser.Success)
         {
             print("Import M3 cancelled.");
+            // Ensure opened files are all released.
+            // TODO: eventually replace the whole scummvm code with a simpler script.
+            loader.Shutdown();
+            loader = null;
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
             return;
         }
 
@@ -494,6 +506,13 @@ public class MainHandler : MonoBehaviour
             Location = Path.GetDirectoryName(projectPath),
         };
         solver.AddAllPoiOnNode(_project.PoiOnNodes);
+
+        // Ensure opened files are all released.
+        // TODO: eventually replace the whole scummvm code with a simpler script.
+        loader.Shutdown();
+        loader = null;
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
 
         SaveProject();
     }

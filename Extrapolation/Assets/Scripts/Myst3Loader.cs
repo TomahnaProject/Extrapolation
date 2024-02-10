@@ -345,4 +345,11 @@ public class Myst3Loader : IMyst3Engine
 
         return desc;
     }
+
+    public void Shutdown()
+    {
+        foreach (Archive archive in _archivesCommon)
+            archive.close();
+        _archiveNode.close();
+    }
 }
