@@ -52,7 +52,8 @@ public class HighlightableHierarchyField : MonoBehaviour, IPointerEnterHandler, 
     {
         renameInputField.onEndEdit.RemoveListener(OnEndRename);
         renameInputField.gameObject.SetActive(false);
-        EventSystem.current.SetSelectedGameObject(null);
+        if (!EventSystem.current.alreadySelecting)
+            EventSystem.current.SetSelectedGameObject(null);
         if (field.Data.BoundTransform.name != newName)
             hierarchy.mainHandler.EditDo(new RenameObjectOperation(field.Data.BoundTransform.gameObject, newName, (obj) => hierarchy.hierarchy.RefreshNameOf(obj.transform)));
     }

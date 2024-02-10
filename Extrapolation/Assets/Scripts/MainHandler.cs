@@ -158,8 +158,10 @@ public class MainHandler : MonoBehaviour
     void Start()
     {
         nodeHierarchy.hierarchy.OnSelectionChanged += OnNodeSelectionChanged;
+        nodeHierarchy.hierarchy.OnItemDoubleClicked += OnNodeDoubleClicked;
         nodeHierarchy.OnHighlightChanged += OnNodeHighlightChanged;
         poiHierarchy.hierarchy.OnSelectionChanged += OnPoiSelectionChanged;
+        poiHierarchy.hierarchy.OnItemDoubleClicked += OnPoiDoubleClicked;
         poiHierarchy.OnHighlightChanged += OnPoiHighlightChanged;
         Application.wantsToQuit += OnWantsToQuit;
         PanelNotificationCenter.OnTabClosed += OnTabClosed;
@@ -275,6 +277,18 @@ public class MainHandler : MonoBehaviour
     void OnPoiSelectionChanged(ReadOnlyCollection<Transform> selection)
     {
 
+    }
+
+    void OnNodeDoubleClicked(HierarchyData clickedItem)
+    {
+        HighlightableHierarchyField field = nodeHierarchy.Fields.First(field => field.field.Data == clickedItem);
+        field.StartRenaming();
+    }
+
+    void OnPoiDoubleClicked(HierarchyData clickedItem)
+    {
+        HighlightableHierarchyField field = poiHierarchy.Fields.First(field => field.field.Data == clickedItem);
+        field.StartRenaming();
     }
 
     void OnNodeHighlightChanged(ReadOnlyCollection<Transform> selection)
@@ -741,9 +755,15 @@ public class MainHandler : MonoBehaviour
     {
         Application.wantsToQuit -= OnWantsToQuit;
         if (nodeHierarchy.hierarchy != null)
+        {
             nodeHierarchy.hierarchy.OnSelectionChanged -= OnNodeSelectionChanged;
+            nodeHierarchy.hierarchy.OnItemDoubleClicked -= OnNodeDoubleClicked;
+        }
         if (poiHierarchy.hierarchy != null)
+        {
             poiHierarchy.hierarchy.OnSelectionChanged -= OnPoiSelectionChanged;
+            poiHierarchy.hierarchy.OnItemDoubleClicked -= OnPoiDoubleClicked;
+        }
         foreach (Texture2D tex in _curTextures)
             Destroy(tex);
     }

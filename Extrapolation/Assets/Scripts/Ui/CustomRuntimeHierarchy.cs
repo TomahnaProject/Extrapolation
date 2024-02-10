@@ -19,6 +19,7 @@ public class CustomRuntimeHierarchy : MonoBehaviour
 
     public delegate void SelectionChangedDelegate(ReadOnlyCollection<Transform> selection);
     public SelectionChangedDelegate OnHighlightChanged;
+    public IReadOnlyList<HighlightableHierarchyField> Fields => fields;
 
     readonly List<HighlightableHierarchyField> fields = new();
 
