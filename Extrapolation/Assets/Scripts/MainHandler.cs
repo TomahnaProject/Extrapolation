@@ -211,6 +211,11 @@ public class MainHandler : MonoBehaviour
                 EditRedo();
         }
         solverData.text = $"Average error: {solver.CurError}\nConvergence iteration: {solver.IterationNumber}";
+        if (solver.Running && solver.Computing && _project != null)
+        {
+            _project.Unsaved = true;
+            saveProjectButton.interactable = true;
+        }
     }
 
     bool OnFilterNodeHierarchy(Transform transform) => transform.GetComponent<NodeRenderer>() != null;
