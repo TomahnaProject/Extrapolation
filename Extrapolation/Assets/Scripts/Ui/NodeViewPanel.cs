@@ -175,6 +175,7 @@ public class NodeViewPanel : MonoBehaviour,
             _renderTex.height = rectHeight;
             _renderCam.aspect = rectWidth / (float)rectHeight;
             _renderTex.Create();
+            UpdatePoiPositions();
         }
 
         if (_focus.Active && !mainHandler.CurrentlyEditingTextField)
