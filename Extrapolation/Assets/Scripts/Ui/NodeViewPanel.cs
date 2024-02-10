@@ -38,6 +38,11 @@ public class NodeViewPanel : MonoBehaviour,
     [Tooltip("Color for displayed points of interest lines.")]
     public Color poiLineColor = Color.cyan;
 
+    [Tooltip("Color for PoI lines that have a low enough angular error.")]
+    public Color poiLineColorMatching = Color.green;
+    [Tooltip("Color for PoI lines that have a high angular error.")]
+    public Color poiLineColorNonMatching = Color.red;
+
     public Camera RenderCam => _renderCam;
 
     /// <summary>
@@ -119,6 +124,12 @@ public class NodeViewPanel : MonoBehaviour,
     float _viewportCustomMoveSensitivity = 1;
 
     readonly Dictionary<PoiOnNode, UiPointOfInterest> _uiPointsOfInterest = new();
+
+    /// <summary>
+    /// For a PoI, how low the angular difference between original direction and solved direction must be
+    /// in order for it to be considered "good enough". Will mostly be used to change the PoI's color.
+    /// </summary>
+    const float poiAngularErrorMarginDegrees = 2;
 
     public const int mouseDragViewButton = 1;
     public const int mouseSelectButton = 0;
@@ -456,67 +467,63 @@ public class NodeViewPanel : MonoBehaviour,
 
     void OnCameraRender()
     {
-        NodeRenderer activeNode = mainHandler.ActiveNode;
         PointOfInterest activePoi = mainHandler.ActivePoi;
+        HashSet<PoiOnNode> linesToDraw = new();
         if (_node == null)
         {
+            NodeRenderer activeNode = mainHandler.ActiveNode;
             if (activeNode != null)
             {
-                GL.Begin(GL.LINES);
-                Color poiLineDeactivatedColor = poiLineColor;
-                Color poiLineDimColor = poiLineColor;
-                poiLineDeactivatedColor.a = 0;
-                poiLineDimColor.a = 0.5f;
+                // We are not in node view, but a node is selected. Draw the direction of its associated PoIs.
                 foreach (PoiOnNode pon in activeNode.pointsOfInterest)
-                {
-                    if (pon.Point.positionInitialized)
-                    {
-                        GL.Color(poiLineColor);
-                        GL.Vertex(activeNode.transform.position);
-                        GL.Vertex(pon.Point.transform.position);
-
-                        // draw the original vector
-                        GL.Color(poiLineDimColor);
-                        GL.Vertex(activeNode.transform.position);
-                        GL.Color(poiLineDeactivatedColor);
-                        GL.Vertex(activeNode.transform.position + pon.Direction * 2);
-                    }
-                    else
-                    {
-                        GL.Color(Color.cyan);
-                        GL.Vertex(activeNode.transform.position);
-                        GL.Color(poiLineDeactivatedColor);
-                        GL.Vertex(activeNode.transform.position + pon.Direction * 2);
-                    }
-                }
-                GL.End();
+                    linesToDraw.Add(pon);
             }
         }
         if (activePoi != null)
         {
-            GL.Begin(GL.LINES);
+            // A PoI is selected. Draw all its relations (except those linked to the node we may be focusing).
             foreach (PoiOnNode pon in activePoi.linkedNodes)
             {
-                NodeRenderer node = pon.Node;
-                if (pon.Point.positionInitialized)
-                {
-                    GL.Color(Color.cyan);
-                    GL.Vertex(node.transform.position);
-                    GL.Vertex(pon.Point.transform.position);
-                    GL.Color(new Color(0, 0.5f, 0.5f));
-                    GL.Vertex(node.transform.position);
-                    GL.Vertex(node.transform.position + pon.Direction * 2);
-                }
-                else
-                {
-                    GL.Color(Color.cyan);
-                    GL.Vertex(node.transform.position);
-                    GL.Color(new Color(0, 0.5f, 0.5f));
-                    GL.Vertex(node.transform.position + pon.Direction * 2);
-                }
+                if (_node != pon.Node)
+                    linesToDraw.Add(pon);
             }
-            GL.End();
         }
+
+        GL.Begin(GL.LINES);
+        Color poiLineDeactivatedColor = poiLineColor;
+        Color poiLineDimColor = poiLineColor;
+        poiLineDeactivatedColor.a = 0;
+        poiLineDimColor.a = 0.5f;
+        foreach (PoiOnNode pon in linesToDraw)
+        {
+            NodeRenderer node = pon.Node;
+            if (pon.Point.positionInitialized)
+            {
+                // Solver has a position for that point - draw the line from the node to the point itself.
+                Vector3 originalDirection = pon.Direction;
+                Vector3 solvedDirection = pon.Point.transform.position - node.transform.position;
+                float angle = Vector3.Angle(originalDirection, solvedDirection);
+                Color poiLineSolvedColor = (angle < poiAngularErrorMarginDegrees) ? poiLineColorMatching : poiLineColorNonMatching;
+                GL.Color(poiLineSolvedColor);
+                GL.Vertex(node.transform.position);
+                GL.Vertex(pon.Point.transform.position);
+
+                // Also draw the original direction vector for comparison.
+                float length = solvedDirection.magnitude;
+                GL.Color(poiLineDimColor);
+                GL.Vertex(node.transform.position);
+                GL.Color(poiLineDeactivatedColor);
+                GL.Vertex(node.transform.position + originalDirection * length);
+            }
+            else
+            {
+                GL.Color(Color.cyan);
+                GL.Vertex(node.transform.position);
+                GL.Color(poiLineDeactivatedColor);
+                GL.Vertex(node.transform.position + pon.Direction * 2);
+            }
+        }
+        GL.End();
     }
 
     public void OnBeginDrag(PointerEventData eventData)

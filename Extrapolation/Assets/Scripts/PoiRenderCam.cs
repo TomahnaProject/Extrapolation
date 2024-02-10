@@ -22,8 +22,9 @@ public class PoiRenderCam : MonoBehaviour
         _drawMaterial.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
         // Turn backface culling off
         _drawMaterial.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Off);
-        // Turn off depth writes
+        // Turn off depth writes/reads
         _drawMaterial.SetInt("_ZWrite", 0);
+        _drawMaterial.SetInt("_ZTest", (int)UnityEngine.Rendering.CompareFunction.Always);
     }
 
     void OnDestroy()
