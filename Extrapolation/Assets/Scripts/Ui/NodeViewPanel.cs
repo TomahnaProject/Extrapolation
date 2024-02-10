@@ -177,7 +177,7 @@ public class NodeViewPanel : MonoBehaviour,
             _renderTex.Create();
         }
 
-        if (_focus.Active)
+        if (_focus.Active && !mainHandler.CurrentlyEditingTextField)
             ProcessInput();
     }
 

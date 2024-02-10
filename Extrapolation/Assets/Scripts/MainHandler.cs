@@ -184,18 +184,25 @@ public class MainHandler : MonoBehaviour
         saveProjectButton.interactable = false;
     }
 
+    public bool CurrentlyEditingTextField
+    {
+        get
+        {
+            GameObject curObj = EventSystem.current.currentSelectedGameObject;
+            #pragma warning disable IDE0270
+            // Null coalescing might not work because of Unity's annoying overload of the null operator. Just properly null the variable then.
+            if (curObj == null)
+                curObj = null;
+            #pragma warning restore IDE0270
+            InputField inputField = curObj?.GetComponent<InputField>();
+            TMP_InputField inputFieldTMPro = curObj?.GetComponent<TMP_InputField>();
+            return (inputField != null && inputField.isFocused) || (inputFieldTMPro != null && inputFieldTMPro.isFocused);
+        }
+    }
+
     void Update()
     {
-        GameObject curObj = EventSystem.current.currentSelectedGameObject;
-        #pragma warning disable IDE0270
-        // Null coalescing might not work because of Unity's annoying overload of the null operator. Just properly null the variable then.
-        if (curObj == null)
-            curObj = null;
-        #pragma warning restore IDE0270
-        InputField inputField = curObj?.GetComponent<InputField>();
-        TMP_InputField inputFieldTMPro = curObj?.GetComponent<TMP_InputField>();
-        bool eitherFocused = (inputField != null && inputField.isFocused) || (inputFieldTMPro != null && inputFieldTMPro.isFocused);
-        if (!eitherFocused)
+        if (!CurrentlyEditingTextField)
         {
             // We're not editing text, so support ctrl-z/y etc.
             // Note: if you're in the editor, make sure you disable Unity intercepting those events by clicking the appropriate button in the game view.
