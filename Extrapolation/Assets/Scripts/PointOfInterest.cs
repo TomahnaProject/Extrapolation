@@ -33,4 +33,16 @@ public class PointOfInterest : MonoBehaviour
     /// Whether we have a vague idea where this point is located.
     /// </summary>
     public bool positionInitialized = false;
+
+    public bool Selected
+    {
+        // TODO
+        get;
+        set;
+    }
+
+    /// <summary>
+    /// Whether this point of interest can move node, or whether it's just used to sample a low-accuracy point of the environment.
+    /// </summary>
+    public bool IsSample { get; set; }
 }

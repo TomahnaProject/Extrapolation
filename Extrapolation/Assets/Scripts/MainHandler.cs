@@ -124,11 +124,17 @@ public class MainHandler : MonoBehaviour
     }
     IReadOnlyList<PointOfInterest> _hoveredPois = new List<PointOfInterest>();
 
+    public IReadOnlyList<NodeRenderer> AllNodes => _project.Nodes;
+    public IReadOnlyList<PointOfInterest> AllPoi => _project.PointsOfInterest;
+    public IReadOnlyList<PoiOnNode> AllPon => _project.PoiOnNodes;
+
     public Action<NodeRenderer, string, string> OnNodeRenamed;
     public Action<PointOfInterest, string, string> OnPoiRenamed;
     public Action<PoiOnNode> OnPoiLinkedToNode;
     public Action<PoiOnNode> OnPoiUnlinkedFromNode;
+    public Action<IReadOnlyList<PointOfInterest>> OnPoiSelectionChanged;
     public Action<PoiOnNode, Vector3, Vector3> OnPonMoved;
+    public Action<PointOfInterest, bool, bool> OnPoiIsSampleChanged;
 
     /// <summary>
     /// Info about the currently loaded project.
@@ -155,12 +161,18 @@ public class MainHandler : MonoBehaviour
     /// </summary>
     const string _projectFileExtension = ".alignproj";
 
+    /// <summary>
+    /// For a PoI, how low the angular difference between original direction and solved direction must be
+    /// in order for it to be considered "good enough". Will mostly be used to change the PoI's color.
+    /// </summary>
+    public const float poiAngularErrorMarginDegrees = 2;
+
     void Start()
     {
         nodeHierarchy.hierarchy.OnSelectionChanged += OnNodeSelectionChanged;
         nodeHierarchy.hierarchy.OnItemDoubleClicked += OnNodeDoubleClicked;
         nodeHierarchy.OnHighlightChanged += OnNodeHighlightChanged;
-        poiHierarchy.hierarchy.OnSelectionChanged += OnPoiSelectionChanged;
+        poiHierarchy.hierarchy.OnSelectionChanged += OnPoiSelectionChangedInternal;
         poiHierarchy.hierarchy.OnItemDoubleClicked += OnPoiDoubleClicked;
         poiHierarchy.OnHighlightChanged += OnPoiHighlightChanged;
         Application.wantsToQuit += OnWantsToQuit;
@@ -225,6 +237,11 @@ public class MainHandler : MonoBehaviour
             _project.Unsaved = true;
             saveProjectButton.interactable = true;
         }
+
+        // We need to update the PoI labels all the time.
+        // This is fairly inexpensive as the hierarchy doesn't display items that are out of the scroll view's viewport.
+        UpdateAllNodeFields();
+        UpdateAllPoiFields();
     }
 
     bool OnFilterNodeHierarchy(Transform transform) => transform.GetComponent<NodeRenderer>() != null;
@@ -274,9 +291,12 @@ public class MainHandler : MonoBehaviour
             node.selectOutline.gameObject.SetActive(activeNodes.Contains(node));
     }
 
-    void OnPoiSelectionChanged(ReadOnlyCollection<Transform> selection)
+    void OnPoiSelectionChangedInternal(ReadOnlyCollection<Transform> selection)
     {
-
+        List<PointOfInterest> activePois = selection.Select(n => n.GetComponent<PointOfInterest>()).ToList();
+        foreach (PointOfInterest poi in _project.PointsOfInterest)
+            poi.Selected = activePois.Contains(poi);
+        OnPoiSelectionChanged?.Invoke(activePois);
     }
 
     void OnNodeDoubleClicked(HierarchyData clickedItem)
@@ -433,12 +453,83 @@ public class MainHandler : MonoBehaviour
             { "Tomahna", 3 },   // example (room, node): (301, 2)
             { "J'nanin", 5 },   // example (room, node): (501, 5)
             { "Edanna", 6 },    // example (room, node): (601, 1), or (602, 1)
-            { "Amateria", 10 }, // example (room, node): (1001, 1)
             { "Voltaic", 7 },   // example (room, node): (701, 25)
-            { "Narayan", 8 }    // example (room, node): (801, 1)
+            { "Narayan", 8 },   // example (room, node): (801, 1)
+            { "Amateria", 10 }, // example (room, node): (1001, 1)
         };
         string age = await questionBox.Show("Age", "Which Age would you like to load ?", ageNameToId.Keys.ToArray());
-        loader.LoadAge(ageNameToId[age]);
+
+        if (ageNameToId[age] == 3 || ageNameToId[age] == 8)
+        {
+            // Tomahna or Narayan
+            loader.LoadAge(ageNameToId[age], 0);
+        }
+        else if (ageNameToId[age] == 5)
+        {
+            // J'nanin
+            Dictionary<string, uint> roomNameToId = new()
+            {
+                { "All", 0 },
+                { "Island", 501 },
+                { "Observatory second floor", 502 },
+                { "Energy Tusk", 503 },
+                { "Life Tusk", 504 },
+                { "Matter Tusk", 505 },
+                { "Observatory first floor", 506 },
+            };
+            string roomName = await questionBox.Show("Room", "Which room would you like to load ?", roomNameToId.Keys.ToArray());
+            loader.LoadAge(ageNameToId[age], roomNameToId[roomName]);
+        }
+        else if (ageNameToId[age] == 6)
+        {
+            // Edanna
+            Dictionary<string, uint> roomNameToId = new()
+            {
+                { "All", 0 },
+                { "Deadwood Ridge", 601 },
+                { "Swing Vines", 602 },
+                { "Forest", 603 },
+                { "Swamp", 604 },
+                { "Nest", 605 },
+            };
+            string roomName = await questionBox.Show("Room", "Which room would you like to load ?", roomNameToId.Keys.ToArray());
+            loader.LoadAge(ageNameToId[age], roomNameToId[roomName]);
+        }
+        else if (ageNameToId[age] == 7)
+        {
+            // Voltaic
+            Dictionary<string, uint> roomNameToId = new()
+            {
+                { "All", 0 },
+                { "Small Island", 701 },
+                { "Power Plant", 702 },
+                { "Electro Magnet", 703 },
+                { "Lava Chamber", 705 },
+                { "Dry Dock", 706 },
+                { "Chasm", 707 },
+                { "Levitating Island", 708 },
+            };
+            string roomName = await questionBox.Show("Room", "Which room would you like to load ?", roomNameToId.Keys.ToArray());
+            loader.LoadAge(ageNameToId[age], roomNameToId[roomName]);
+        }
+        else if (ageNameToId[age] == 10)
+        {
+            // Amateria
+            Dictionary<string, uint> roomNameToId = new()
+            {
+                { "All", 0 },
+                { "Cavern", 1001 },
+                { "Island", 1002 },
+                { "Libra's Lever", 1003 },
+                { "Spider Spinner", 1004 },
+                { "Wheels of Wonder", 1005 },
+                { "Tower", 1006 },
+            };
+            string roomName = await questionBox.Show("Room", "Which room would you like to load ?", roomNameToId.Keys.ToArray());
+            loader.LoadAge(ageNameToId[age], roomNameToId[roomName]);
+        }
+        else
+            throw new NotImplementedException();
 
         // Select where to save the project
         string projectPath;
@@ -676,9 +767,10 @@ public class MainHandler : MonoBehaviour
             point.name = serPoi.name;
             point.transform.position = serPoi.position;
             point.positionInitialized = serPoi.positionInitialized;
+            point.IsSample = serPoi.isSample;
             pois.Add(point);
         }
-        foreach (SerialPoiOnNodes serPon in serProj.poiOnNodes)
+        foreach (SerialPoiOnNode serPon in serProj.poiOnNodes)
         {
             NodeRenderer node = nodes.First(n => n.id == serPon.nodeId);
             PointOfInterest point = pois[serPon.poiId];
@@ -733,13 +825,14 @@ public class MainHandler : MonoBehaviour
                 id = poi.Id,
                 name = poi.name,
                 position = poi.transform.position,
-                positionInitialized = poi.positionInitialized
+                positionInitialized = poi.positionInitialized,
+                isSample = poi.IsSample
             }).ToList(),
-            poiOnNodes = _project.PoiOnNodes.Select(pon => new SerialPoiOnNodes()
+            poiOnNodes = _project.PoiOnNodes.Select(pon => new SerialPoiOnNode()
             {
                 nodeId = pon.Node.id,
                 poiId = _project.PointsOfInterest.IndexOf(pon.Point),
-                direction = pon.Direction
+                direction = pon.Direction,
             }).ToList()
         };
 
@@ -761,7 +854,7 @@ public class MainHandler : MonoBehaviour
         }
         if (poiHierarchy.hierarchy != null)
         {
-            poiHierarchy.hierarchy.OnSelectionChanged -= OnPoiSelectionChanged;
+            poiHierarchy.hierarchy.OnSelectionChanged -= OnPoiSelectionChangedInternal;
             poiHierarchy.hierarchy.OnItemDoubleClicked -= OnPoiDoubleClicked;
         }
         foreach (Texture2D tex in _curTextures)
@@ -810,7 +903,10 @@ public class MainHandler : MonoBehaviour
     Task WrapAsync(IEnumerator coroutine)
     {
         TaskCompletionSource<object> tcs = new();
-        StartCoroutine(WaitCoroutine(coroutine, tcs));
+        if (coroutine != null)
+            StartCoroutine(WaitCoroutine(coroutine, tcs));
+        else
+            StartCoroutine(WaitOneFrame(tcs));
         return tcs.Task;
     }
 
@@ -824,6 +920,80 @@ public class MainHandler : MonoBehaviour
     {
         yield return StartCoroutine(coroutine);
         tcs.SetResult(null);
+    }
+
+    /// <summary>
+    /// Coroutine that waits on another, completing a task when it's done.
+    /// </summary>
+    /// <param name="coroutine">The coroutine to wait on.</param>
+    /// <param name="tcs">The task source that will complete after the coroutine.</param>
+    /// <returns>A coroutine's enumerator.</returns>
+    IEnumerator WaitOneFrame(TaskCompletionSource<object> tcs)
+    {
+        yield return null;
+        tcs.SetResult(null);
+    }
+
+    void UpdateAllNodeFields()
+    {
+        if (_project == null)
+            return;
+        nodeHierarchy.hierarchy.Refresh();
+        foreach (NodeRenderer node in AllNodes)
+            UpdateNodeField(node);
+    }
+
+    void UpdateAllPoiFields()
+    {
+        if (_project == null)
+            return;
+        poiHierarchy.hierarchy.Refresh();
+        foreach (PointOfInterest point in AllPoi)
+            UpdatePoiField(point);
+    }
+    
+    void UpdateNodeField(NodeRenderer node)
+    {
+        HighlightableHierarchyField field = nodeHierarchy.Fields.FirstOrDefault(f => f.field.Data?.BoundTransform == node.transform);
+        if (field == null)
+        {
+            // The field may just not be in view... Nevermind.
+            return;
+        }
+        NodeHierarchyField nodeField = field.GetComponent<NodeHierarchyField>();
+        nodeField.statsGroup.alpha = 1;
+        nodeField.statsGroup.interactable = nodeField.statsGroup.blocksRaycasts = true;
+        float maxAngle = node.pointsOfInterest.Select(pon => Vector3.Angle(pon.Direction, pon.Point.transform.position - pon.Node.transform.position)).Max();
+        bool enoughNodes = node.pointsOfInterest.Count >= 2;
+        string angleColor =
+            enoughNodes ?
+                ((maxAngle < poiAngularErrorMarginDegrees) ? "#0f0" : "#f44")
+                : "#777";
+        string nodeCountColor = enoughNodes ? "#D7D7D7" : "#777";
+        nodeField.statsLabel.text = $"<color={angleColor}>{maxAngle:F2}°</color> | <color={nodeCountColor}>{node.pointsOfInterest.Count}</color>";
+    }
+    
+    void UpdatePoiField(PointOfInterest point)
+    {
+        HighlightableHierarchyField field = poiHierarchy.Fields.FirstOrDefault(f => f.field.Data?.BoundTransform == point.transform);
+        if (field == null)
+        {
+            // The field may just not be in view... Nevermind.
+            return;
+        }
+        PoiHierarchyField poiField = field.GetComponent<PoiHierarchyField>();
+        poiField.statsGroup.alpha = 1;
+        poiField.statsGroup.interactable = poiField.statsGroup.blocksRaycasts = true;
+        float maxAngle = point.linkedNodes.Select(pon => Vector3.Angle(pon.Direction, pon.Point.transform.position - pon.Node.transform.position)).Max();
+        bool enoughNodes = point.linkedNodes.Count >= 2;
+        string angleColor =
+            enoughNodes ?
+                ((maxAngle < poiAngularErrorMarginDegrees) ? "#0f0" : "#f44")
+                : "#777";
+        string nodeCountColor = enoughNodes ? "#D7D7D7" : "#777";
+        poiField.statsLabel.text = $"<color={angleColor}>{maxAngle:F2}°</color> | <color={nodeCountColor}>{point.linkedNodes.Count}</color>";
+        if (poiField.isSampleToggle.isOn != point.IsSample)
+            poiField.SetIsSample(point.IsSample);
     }
 
     public PoiOnNode CreatePointOfInterest(NodeRenderer node, Vector3 direction)
@@ -840,6 +1010,8 @@ public class MainHandler : MonoBehaviour
         _project.PointsOfInterest.Add(point);
         _project.PoiOnNodes.Add(pointOnNode);
         solver.AddOrUpdatePoiOnNode(pointOnNode);
+        poiHierarchy.hierarchy.Refresh();
+        UpdatePoiField(point);
         OnPoiLinkedToNode?.Invoke(pointOnNode);
         return pointOnNode;
     }
@@ -854,6 +1026,8 @@ public class MainHandler : MonoBehaviour
         node.pointsOfInterest.Add(pointOnNode);
         _project.PoiOnNodes.Add(pointOnNode);
         solver.AddOrUpdatePoiOnNode(pointOnNode);
+        poiHierarchy.hierarchy.Refresh();
+        UpdatePoiField(point);
         OnPoiLinkedToNode?.Invoke(pointOnNode);
         return pointOnNode;
     }
@@ -872,8 +1046,14 @@ public class MainHandler : MonoBehaviour
                 ActivePoi = null;
             _project.PointsOfInterest.Remove(point);
             Destroy(point.gameObject);
+            Destroy(pointOnNode.gameObject);
         }
-        Destroy(pointOnNode.gameObject);
+        else
+        {
+            Destroy(pointOnNode.gameObject);
+            poiHierarchy.hierarchy.Refresh();
+            UpdatePoiField(point);
+        }
     }
 
     public void DeletePointOfInterest(PointOfInterest poi)
@@ -903,6 +1083,15 @@ public class MainHandler : MonoBehaviour
     {
         if (active.TryGetComponent(out PointOfInterest poi))
             EditDo(new DeletePointOfInterestOperation(poi));
+    }
+
+    public void SetPoiAsSample(PointOfInterest poi, bool isSample)
+    {
+        bool oldIsSample = poi.IsSample;
+        poi.IsSample = isSample;
+        foreach (PoiOnNode relation in poi.linkedNodes)
+            solver.AddOrUpdatePoiOnNode(relation);
+        OnPoiIsSampleChanged?.Invoke(poi, oldIsSample, isSample);
     }
 
     #endregion

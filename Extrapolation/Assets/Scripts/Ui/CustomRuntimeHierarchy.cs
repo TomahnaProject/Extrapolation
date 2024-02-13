@@ -23,7 +23,7 @@ public class CustomRuntimeHierarchy : MonoBehaviour
 
     readonly List<HighlightableHierarchyField> fields = new();
 
-    void Start()
+    void Awake()
     {
         fields.Clear();
     }

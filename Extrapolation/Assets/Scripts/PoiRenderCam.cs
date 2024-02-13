@@ -7,6 +7,7 @@ public class PoiRenderCam : MonoBehaviour
 {
     public Action OnCameraRender;
 
+    public Material LineMaterial => _drawMaterial;
     Material _drawMaterial;
 
     void Start()
@@ -36,9 +37,6 @@ public class PoiRenderCam : MonoBehaviour
     {
         if (_drawMaterial == null)
             return;
-
-        // Apply the line material
-        _drawMaterial.SetPass(0);
 
         // Let the NodeViewPanel handle rendering.
         OnCameraRender?.Invoke();

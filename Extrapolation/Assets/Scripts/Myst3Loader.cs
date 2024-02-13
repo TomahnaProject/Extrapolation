@@ -241,13 +241,16 @@ public class Myst3Loader : IMyst3Engine
     /// Load all the cube nodes (and textures) from the given Age.
     /// </summary>
     /// <param name="ageID">ID of the Age to load.</param>
-    public void LoadAge(uint ageID)
+    /// <param name="roomID">ID of the room to load, or zero to load all.</param>
+    public void LoadAge(uint ageID, uint roomID)
     {
         AgeData age = Database.ages.First(a => a.id == ageID);
         foreach (RoomData room in age.rooms)
         {
-            uint roomID = room.id;
-            List<NodeData> nodes = _db.getRoomNodes(roomID, ageID);
+            uint curRoomID = room.id;
+            if (roomID != 0 && roomID != curRoomID)
+                continue;
+            List<NodeData> nodes = _db.getRoomNodes(curRoomID, ageID);
             foreach (NodeData nodeData in nodes)
             {
                 short nodeID = nodeData.id;
@@ -255,20 +258,20 @@ public class Myst3Loader : IMyst3Engine
                 if (nodeID != 0)
                     state.setVar("LocationNode", state.valueOrVarValue(nodeID));
 
-                if (roomID != 0)
-                    state.setVar("LocationRoom", state.valueOrVarValue(roomID));
+                if (curRoomID != 0)
+                    state.setVar("LocationRoom", state.valueOrVarValue(curRoomID));
                 else
-                    roomID = (uint)state.getVar("LocationRoom");
+                    curRoomID = (uint)state.getVar("LocationRoom");
 
                 if (ageID != 0)
                     state.setVar("LocationAge", state.valueOrVarValue(ageID));
                 else
                     ageID = (uint)state.getVar("LocationAge");
 
-                _db.cacheRoom(roomID, ageID);
+                _db.cacheRoom(curRoomID, ageID);
 
-                string newRoomName = _db.getRoomName(roomID, ageID);
-                if (_archiveNode.roomName != newRoomName && !_db.isCommonRoom(roomID, ageID))
+                string newRoomName = _db.getRoomName(curRoomID, ageID);
+                if (_archiveNode.roomName != newRoomName && !_db.isCommonRoom(curRoomID, ageID))
                 {
                     string nodeFile = string.Format("{0}nodes.m3a", newRoomName);
 
@@ -286,7 +289,7 @@ public class Myst3Loader : IMyst3Engine
                 // WORKAROUND: In Narayan, the scripts in node NACH 9 test on var 39
                 // without first reinitializing it leading to Saavedro not always giving
                 // Releeshan to the player when he is trapped between both shields.
-                if (nodeID == 9 && roomID == 801)
+                if (nodeID == 9 && curRoomID == 801)
                     state.setVar(39, 0);
             }
         }

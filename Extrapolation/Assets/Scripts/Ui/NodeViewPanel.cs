@@ -63,7 +63,10 @@ public class NodeViewPanel : MonoBehaviour,
                     SetCamReferenceNode(value);
                     if (_camAnimCoroutine != null)
                         StopCoroutine(_camAnimCoroutine);
-                    _camAnimCoroutine = StartCoroutine(AnimateCamPos(startOffset, Vector3.zero));
+                    _camAnimCoroutine = StartCoroutine(AnimateCamPos(
+                        startOffset,
+                        Vector3.zero,
+                        resetFov: _node == null));
                     _renderCam.transform.position = value.transform.position;
                     if (Tab != null)
                         Tab.Label = value.name;
@@ -76,11 +79,18 @@ public class NodeViewPanel : MonoBehaviour,
                     SetCamReferenceNode(null);
                     if (_camAnimCoroutine != null)
                         StopCoroutine(_camAnimCoroutine);
-                    _camAnimCoroutine = StartCoroutine(AnimateCamPos(startPos, _node.transform.position - _renderCam.transform.forward * 0.5f));
+                    _camAnimCoroutine = StartCoroutine(AnimateCamPos(
+                        startPos,
+                        _node.transform.position - _renderCam.transform.forward * 0.5f,
+                        resetFov: true));
                     if (Tab != null)
                         Tab.Label = "3D view";
                     ClearUiPois();
                 }
+                if (value != null)
+                    _renderCam.cullingMask &= ~(1 << LayerMask.NameToLayer("Nodes"));
+                else
+                    _renderCam.cullingMask |= 1 << LayerMask.NameToLayer("Nodes");
             }
             _node = value;
             if (_node != null)
@@ -125,12 +135,6 @@ public class NodeViewPanel : MonoBehaviour,
 
     readonly Dictionary<PoiOnNode, UiPointOfInterest> _uiPointsOfInterest = new();
 
-    /// <summary>
-    /// For a PoI, how low the angular difference between original direction and solved direction must be
-    /// in order for it to be considered "good enough". Will mostly be used to change the PoI's color.
-    /// </summary>
-    const float poiAngularErrorMarginDegrees = 2;
-
     public const int mouseDragViewButton = 1;
     public const int mouseSelectButton = 0;
 
@@ -168,6 +172,7 @@ public class NodeViewPanel : MonoBehaviour,
             _renderCam.transform.LookAt(Vector3.zero);
         }
 
+        mainHandler.OnPoiSelectionChanged += OnPoiSelectionChanged;
         mainHandler.OnNodeRenamed += OnNodeRenamed;
         mainHandler.OnPoiLinkedToNode += OnPoiLinkedToNode;
         mainHandler.OnPoiRenamed += OnPoiRenamed;
@@ -216,11 +221,12 @@ public class NodeViewPanel : MonoBehaviour,
         }
         else
         {
-            if (Input.GetKeyDown(KeyCode.D) ||
+            if (!Input.GetKey(KeyCode.LeftControl) && (
+                Input.GetKeyDown(KeyCode.D) ||
                 Input.GetKeyDown(KeyCode.S) ||
                 Input.GetKeyDown(KeyCode.RightArrow) ||
                 Input.GetKeyDown(KeyCode.DownArrow)
-                )
+                ))
             {
                 List<NodeRenderer> nodes = GetNodesList();
                 int index = nodes.IndexOf(Node);
@@ -228,11 +234,12 @@ public class NodeViewPanel : MonoBehaviour,
                     Node = nodes[index + 1];
             }
 
-            else if (Input.GetKeyDown(KeyCode.A) ||
+            else if (!Input.GetKey(KeyCode.LeftControl) && (
+                Input.GetKeyDown(KeyCode.A) ||
                 Input.GetKeyDown(KeyCode.W) ||
                 Input.GetKeyDown(KeyCode.LeftArrow) ||
                 Input.GetKeyDown(KeyCode.UpArrow)
-                )
+                ))
             {
                 List<NodeRenderer> nodes = GetNodesList();
                 int index = nodes.IndexOf(Node);
@@ -305,8 +312,9 @@ public class NodeViewPanel : MonoBehaviour,
     /// </summary>
     /// <param name="start">Start position if the node constraint is inactive, start offset otherwise.</param>
     /// <param name="end">End position if the node constraint is inactive, end offset otherwise.</param>
+    /// <param name="resetFov">Whether to reset FOV or preserve it.</param>
     /// <returns>Iterator for the anim.</returns>
-    IEnumerator AnimateCamPos(Vector3 start, Vector3 end)
+    IEnumerator AnimateCamPos(Vector3 start, Vector3 end, bool resetFov)
     {
         float begin = Time.time;
         float duration = 0.2f;
@@ -321,7 +329,8 @@ public class NodeViewPanel : MonoBehaviour,
                 _camParentConstraint.SetTranslationOffset(0, pos);
             else
                 _renderCam.transform.position = pos;
-            _renderCam.fieldOfView = Mathf.Lerp(beginFov, 80, factor);
+            if (resetFov)
+                _renderCam.fieldOfView = Mathf.Lerp(beginFov, 80, factor);
             yield return null;
         } while (progress < duration);
         _camAnimCoroutine = null;
@@ -418,14 +427,22 @@ public class NodeViewPanel : MonoBehaviour,
         Destroy(_renderTex);
         if (mainHandler != null)
         {
+            mainHandler.OnPoiSelectionChanged -= OnPoiSelectionChanged;
             mainHandler.OnNodeRenamed -= OnNodeRenamed;
             mainHandler.OnPoiLinkedToNode -= OnPoiLinkedToNode;
             mainHandler.OnPoiRenamed -= OnPoiRenamed;
             mainHandler.OnPoiUnlinkedFromNode -= OnPoiUnlinkedFromNode;
+            mainHandler.OnPonMoved -= OnPonMoved;
         }
     }
 
     #region Main handler events
+
+    void OnPoiSelectionChanged(IReadOnlyList<PointOfInterest> list)
+    {
+        foreach (var kvp in _uiPointsOfInterest)
+            kvp.Value.Selected = list.Contains(kvp.Key.Point);
+    }
 
     void OnNodeRenamed(NodeRenderer node, string oldName, string newName)
     {
@@ -480,25 +497,51 @@ public class NodeViewPanel : MonoBehaviour,
 
     void OnCameraRender()
     {
+        if (_node != null)
+        {
+            MaterialPropertyBlock block = new();
+            for (int i = 0; i < 6; i++)
+            {
+                _node.sphere.GetPropertyBlock(block, i);
+                _node.sphere.sharedMaterials[i].SetTexture("_MainTex", block.GetTexture("_MainTex"));
+                _node.sphere.sharedMaterials[i].SetPass(0);
+                Graphics.DrawMeshNow(_node.sphere.GetComponent<MeshFilter>().sharedMesh, _node.sphere.transform.localToWorldMatrix, i);
+            }
+        }
+        _poiCam.LineMaterial.SetPass(0);
+
+        bool showAllRelations = Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt);
+
         PointOfInterest activePoi = mainHandler.ActivePoi;
         HashSet<PoiOnNode> linesToDraw = new();
-        if (_node == null)
+        if (showAllRelations)
         {
-            NodeRenderer activeNode = mainHandler.ActiveNode;
-            if (activeNode != null)
+            foreach (PoiOnNode pon in mainHandler.AllPon)
             {
-                // We are not in node view, but a node is selected. Draw the direction of its associated PoIs.
-                foreach (PoiOnNode pon in activeNode.pointsOfInterest)
+                if (_node == null || pon.Node != _node)
                     linesToDraw.Add(pon);
             }
         }
-        if (activePoi != null)
+        else
         {
-            // A PoI is selected. Draw all its relations (except those linked to the node we may be focusing).
-            foreach (PoiOnNode pon in activePoi.linkedNodes)
+            if (_node == null)
             {
-                if (_node != pon.Node)
-                    linesToDraw.Add(pon);
+                NodeRenderer activeNode = mainHandler.ActiveNode;
+                if (activeNode != null)
+                {
+                    // We are not in node view, but a node is selected. Draw the direction of its associated PoIs.
+                    foreach (PoiOnNode pon in activeNode.pointsOfInterest)
+                        linesToDraw.Add(pon);
+                }
+            }
+            if (activePoi != null)
+            {
+                // A PoI is selected. Draw all its relations (except those linked to the node we may be focusing).
+                foreach (PoiOnNode pon in activePoi.linkedNodes)
+                {
+                    if (_node != pon.Node)
+                        linesToDraw.Add(pon);
+                }
             }
         }
 
@@ -516,7 +559,7 @@ public class NodeViewPanel : MonoBehaviour,
                 Vector3 originalDirection = pon.Direction;
                 Vector3 solvedDirection = pon.Point.transform.position - node.transform.position;
                 float angle = Vector3.Angle(originalDirection, solvedDirection);
-                Color poiLineSolvedColor = (angle < poiAngularErrorMarginDegrees) ? poiLineColorMatching : poiLineColorNonMatching;
+                Color poiLineSolvedColor = (angle < MainHandler.poiAngularErrorMarginDegrees) ? poiLineColorMatching : poiLineColorNonMatching;
                 GL.Color(poiLineSolvedColor);
                 GL.Vertex(node.transform.position);
                 GL.Vertex(pon.Point.transform.position);

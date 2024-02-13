@@ -10,4 +10,5 @@ public class SerialPointOfInterest
     public string name;
     public bool positionInitialized;
     public Vector3 position;
+    public bool isSample;
 }

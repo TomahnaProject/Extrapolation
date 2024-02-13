@@ -265,7 +265,8 @@ public class ThreadedSphericalPoseSolver : MonoBehaviour
         {
             direction = pon.Direction,
             looker = points[pon.Node.transform],
-            observed = points[pon.Point.transform]
+            observed = points[pon.Point.transform],
+            isSample = pon.Point.IsSample
         }).ToList();
 
         // Make sure all the referenced points exist or filter out relations, if initialization isn't possible.
@@ -369,6 +370,7 @@ public class ThreadedSphericalPoseSolver : MonoBehaviour
         public PointData looker;
         public PointData observed;
         public Vector3 direction;
+        public bool isSample;
 
         /// <summary>
         /// Computes an error factor, comparing the computed position of the given points relative to our pitch/heading.
@@ -378,11 +380,8 @@ public class ThreadedSphericalPoseSolver : MonoBehaviour
         /// <returns>An error factor. Closer to zero is better.</returns>
         public readonly float GetError()
         {
-            Vector3 calculated_vector = observed.position - looker.position;
-            calculated_vector = calculated_vector.normalized;
             // Compare the angle between the unit vector that accurately represents our pitch/heading against the vector that was computed by the solver.
-            float dot_product = Vector3.Dot(direction, calculated_vector);
-            return Mathf.Pow(1 - dot_product, 2);
+            return Vector3.Angle(direction, observed.position - looker.position);
         }
     }
 
@@ -438,6 +437,7 @@ public class ThreadedSphericalPoseSolver : MonoBehaviour
             SolverRunningDataset dataset = _dataset;
             if (!Computing || !Running || IterationNumber > maxIterations || dataset == null)
             {
+                Computing = false;
                 Thread.Sleep(500);
                 continue;
             }
@@ -458,10 +458,18 @@ public class ThreadedSphericalPoseSolver : MonoBehaviour
             foreach (ref RelationData relation in dataset.relations.AsSpan())
             {
                 Vector3 offset = Grad(relation.direction, relation.looker.position, relation.observed.position) * stepSize;
-                // (FUTURE: this would be a good time to multiply by the weight of the relation, when applicable.)
                 // Store the offset for later use. We will merge it back into the point's position once all relations are done computing.
-                relation.looker.nextOffset -= offset;
-                relation.observed.nextOffset += offset;
+                if (relation.isSample)
+                {
+                    // This is a low-accuracy sample, don't move the node...
+                    relation.observed.nextOffset += offset;
+                }
+                else
+                {
+                    // This is a high-accuracy point, move the node.
+                    relation.looker.nextOffset -= offset;
+                    relation.observed.nextOffset += offset;
+                }
             }
 
             // Merge offsets back into point positions.

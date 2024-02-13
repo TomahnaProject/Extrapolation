@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [Serializable]
-public class SerialPoiOnNodes
+public class SerialPoiOnNode
 {
     public string nodeId;
     public int poiId;

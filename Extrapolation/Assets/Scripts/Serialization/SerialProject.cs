@@ -8,5 +8,5 @@ public class SerialProject
 {
     public List<SerialCube> cubes = new();
     public List<SerialPointOfInterest> pointsOfInterest = new();
-    public List<SerialPoiOnNodes> poiOnNodes = new();
+    public List<SerialPoiOnNode> poiOnNodes = new();
 }
